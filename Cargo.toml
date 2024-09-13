@@ -8,8 +8,9 @@ needless_return = "allow"
 
 [dependencies]
 anyhow = "1.0.88"
+chrono = "0.4.38"
 env_logger = "0.11.5"
 log = "0.4.22"
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 teloxide = { version = "0.13.0", features = ["macros"] }
-tokio = { version = "1.40.0", features = ["full", "rt", "tokio-macros"] }
+tokio = { version = "1.40.0", features = ["macros", "rt", "rt-multi-thread"] }

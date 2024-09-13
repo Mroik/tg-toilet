@@ -54,8 +54,9 @@ pub async fn insert_shitting_session(
     user: &User,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<()> {
+) -> Result<u64> {
     let conn = conn.lock().await;
+    let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
         "INSERT INTO shit_session(
             user_id,
@@ -72,16 +73,9 @@ pub async fn insert_shitting_session(
             ?,
             ?
         )",
-        rusqlite::params![
-            user.id.0,
-            UNIX_EPOCH.elapsed()?.as_secs(),
-            Null,
-            Null,
-            haemorrhoids,
-            constipated
-        ],
+        rusqlite::params![user.id.0, timestamp, Null, Null, haemorrhoids, constipated],
     )?;
-    return Ok(());
+    return Ok(timestamp);
 }
 
 // With `location` set as NULL
@@ -91,8 +85,9 @@ pub async fn insert_shitting_session_with_duration(
     duration: u64,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<()> {
+) -> Result<u64> {
     let conn = conn.lock().await;
+    let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
         "INSERT INTO shit_session(
             user_id,
@@ -111,14 +106,14 @@ pub async fn insert_shitting_session_with_duration(
         )",
         rusqlite::params![
             user.id.0,
-            UNIX_EPOCH.elapsed()?.as_secs(),
+            timestamp,
             duration,
             Null,
             haemorrhoids,
             constipated
         ],
     )?;
-    return Ok(());
+    return Ok(timestamp);
 }
 
 pub async fn insert_shitting_session_with_location(
@@ -128,8 +123,9 @@ pub async fn insert_shitting_session_with_location(
     location: &str,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<()> {
+) -> Result<u64> {
     let conn = conn.lock().await;
+    let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
         "INSERT INTO shit_session(
             user_id,
@@ -148,12 +144,12 @@ pub async fn insert_shitting_session_with_location(
         )",
         rusqlite::params![
             user.id.0,
-            UNIX_EPOCH.elapsed()?.as_secs(),
+            timestamp,
             duration,
             location,
             haemorrhoids,
             constipated
         ],
     )?;
-    return Ok(());
+    return Ok(timestamp);
 }
