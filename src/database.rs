@@ -1,9 +1,9 @@
-use std::path::Path;
-
 use crate::DB_NAME;
 use anyhow::Result;
 use rusqlite::Connection;
+use std::{path::Path, sync::Arc};
 use teloxide::types::User;
+use tokio::sync::Mutex;
 
 pub async fn setup_db() -> Result<Connection> {
     let exists = Path::new(DB_NAME).exists();
@@ -34,4 +34,19 @@ pub async fn setup_db() -> Result<Connection> {
     return Ok(conn);
 }
 
-pub async fn create_or_update_user(conn: &Connection, user: User) {}
+pub async fn create_or_update_user(
+    conn: Arc<Mutex<Connection>>,
+    user: &User,
+) -> anyhow::Result<()> {
+    let conn = conn.lock().await;
+    let mut statement = conn.prepare(
+        "INSERT INTO user(id, username) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET username = ?",
+    )?;
+    let username = if user.username.is_some() {
+        user.username.as_ref().unwrap().clone()
+    } else {
+        user.full_name()
+    };
+    statement.execute(rusqlite::params![user.id.0, username, username])?;
+    return Ok(());
+}
