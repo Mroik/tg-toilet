@@ -3,6 +3,9 @@ name = "tg-toilet"
 version = "0.1.0"
 edition = "2021"
 
+[lints.clippy]
+needless_return = "allow"
+
 [dependencies]
 anyhow = "1.0.88"
 env_logger = "0.11.5"
