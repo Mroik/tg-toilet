@@ -1,7 +1,7 @@
 use crate::{
     database::{
         create_or_update_user, insert_shitting_session, insert_shitting_session_with_duration,
-        insert_shitting_session_with_location,
+        insert_shitting_session_with_location, query_shit_session_from,
     },
     BOT_NAME,
 };
@@ -26,11 +26,23 @@ use tokio::sync::Mutex;
 #[command(rename_rule = "lowercase")]
 enum Command {
     Shitting,
+    Daily,
+}
+
+pub struct ShitSession {
+    pub id: u64,
+    pub user_id: u64,
+    pub timestamp: u64,
+    pub duration: Option<u64>,
+    pub location: Option<String>,
+    pub haemorrhoids: bool,
+    pub constipated: bool,
 }
 
 const SHITTING_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/shitting\n/shitting duration\n/shitting duration location\n/shitting duration location haemorrhoids\n/shitting duration location haemorrhoids constipated\nDuration: in seconds\nLocation: A string without inner whitespaces\nHaemorrhoids and Constipated are either `true` or `false`";
 const PLEASE_REPORT: &str =
     "Coudln't insert your shitting session 😥\nPlease report incident to @Mroik";
+const WEEK: u64 = 60 * 60 * 24 * 7;
 
 pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> ResponseResult<()> {
     if msg.text().is_none() {
@@ -59,6 +71,38 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
 
     match command.unwrap() {
         Command::Shitting => answer_shitting(conn, bot, msg).await,
+        Command::Daily => answer_daily(conn, bot, msg).await,
+    }
+}
+
+async fn answer_daily(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> ResponseResult<()> {
+    let current = UNIX_EPOCH.elapsed().unwrap().as_secs();
+    let starting = current - WEEK;
+    match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
+        Ok(r) => {
+            let n = r.len() as f32 / 7.0;
+            bot.send_message(
+                msg.chat.id,
+                format!(
+                    "Last week {} shat on average {:.2} times a day",
+                    if msg.from.as_ref().unwrap().username.is_some() {
+                        format!("@{}", msg.from.unwrap().username.unwrap())
+                    } else {
+                        msg.from.as_ref().unwrap().full_name()
+                    },
+                    n
+                ),
+            )
+            .reply_parameters(ReplyParameters::new(msg.id))
+            .await?;
+            return Ok(());
+        }
+        Err(_) => {
+            bot.send_message(msg.chat.id, "Couldn't query the shit sessions")
+                .reply_parameters(ReplyParameters::new(msg.id))
+                .await?;
+            return Ok(());
+        }
     }
 }
 
@@ -176,14 +220,14 @@ async fn answer_shitting(
         bot.send_message(
             msg.chat.id,
             format!(
-                "💩💩💩\n{} added a new shitting session to the database with timestamp {}",
+                "💩💩💩\n{} added a new shitting session to the database with timestamp `{}`",
                 username,
                 date.format("%Y\\-%m\\-%d %H:%M")
             ),
         )
+        .reply_parameters(ReplyParameters::new(msg.id))
         .parse_mode(ParseMode::MarkdownV2)
         .await?;
-        bot.delete_message(msg.chat.id, msg.id).await?;
     }
     return Ok(());
 }

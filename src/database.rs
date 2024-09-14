@@ -1,6 +1,6 @@
-use crate::DB_NAME;
+use crate::{bot::ShitSession, DB_NAME};
 use anyhow::Result;
-use rusqlite::{types::Null, Connection};
+use rusqlite::{params, types::Null, Connection};
 use std::{path::Path, sync::Arc, time::UNIX_EPOCH};
 use teloxide::types::User;
 use tokio::sync::Mutex;
@@ -43,7 +43,7 @@ pub async fn create_or_update_user(conn: Arc<Mutex<Connection>>, user: &User) ->
     };
     conn.execute(
         "INSERT INTO user(id, username) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET username = ?",
-        rusqlite::params![user.id.0, username, username],
+        params![user.id.0, username, username],
     )?;
     return Ok(());
 }
@@ -73,7 +73,7 @@ pub async fn insert_shitting_session(
             ?,
             ?
         )",
-        rusqlite::params![user.id.0, timestamp, Null, Null, haemorrhoids, constipated],
+        params![user.id.0, timestamp, Null, Null, haemorrhoids, constipated],
     )?;
     return Ok(timestamp);
 }
@@ -104,7 +104,7 @@ pub async fn insert_shitting_session_with_duration(
             ?,
             ?
         )",
-        rusqlite::params![
+        params![
             user.id.0,
             timestamp,
             duration,
@@ -142,7 +142,7 @@ pub async fn insert_shitting_session_with_location(
             ?,
             ?
         )",
-        rusqlite::params![
+        params![
             user.id.0,
             timestamp,
             duration,
@@ -152,4 +152,30 @@ pub async fn insert_shitting_session_with_location(
         ],
     )?;
     return Ok(timestamp);
+}
+
+pub async fn query_shit_session_from(
+    conn: Arc<Mutex<Connection>>,
+    user: &User,
+    timestamp: u64,
+) -> Result<Vec<ShitSession>> {
+    let conn = conn.lock().await;
+    let mut statement =
+        conn.prepare("SELECT * FROM shit_session WHERE timestamp >= ? AND user_id = ?")?;
+    let mut res = Vec::new();
+    let state_iter = statement.query_map(params![timestamp, user.id.0], |r| {
+        Ok(ShitSession {
+            id: r.get(0)?,
+            user_id: r.get(1)?,
+            timestamp: r.get(2)?,
+            duration: r.get(3)?,
+            location: r.get(4)?,
+            haemorrhoids: r.get(5)?,
+            constipated: r.get(6)?,
+        })
+    })?;
+    for item in state_iter {
+        res.push(item?);
+    }
+    return Ok(res);
 }
