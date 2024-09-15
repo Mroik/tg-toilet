@@ -6,6 +6,7 @@ use crate::{
     },
     BOT_NAME,
 };
+use anyhow::anyhow;
 use chrono::{DateTime, Local};
 use log::error;
 use rusqlite::Connection;
@@ -30,7 +31,9 @@ use tokio::sync::Mutex;
 #[command(rename_rule = "lowercase")]
 enum Command {
     Shitting,
-    Daily,
+    Week,
+    Month,
+    Year,
 }
 
 pub struct ShitSession {
@@ -46,7 +49,7 @@ pub struct ShitSession {
 const SHITTING_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/shitting\n/shitting duration\n/shitting duration location\n/shitting duration location haemorrhoids\n/shitting duration location haemorrhoids constipated\nDuration: in seconds\nLocation: A string without inner whitespaces\nHaemorrhoids and Constipated are either `true` or `false`";
 const PLEASE_REPORT: &str =
     "Coudln't insert your shitting session 😥\nPlease report incident to @Mroik";
-const WEEK: u64 = 60 * 60 * 24 * 7;
+const DAY: u64 = 60 * 60 * 24;
 
 pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> ResponseResult<()> {
     if msg.text().is_none() {
@@ -75,30 +78,104 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
 
     match command.unwrap() {
         Command::Shitting => answer_shitting(conn, bot, msg).await,
-        Command::Daily => answer_daily(conn, bot, msg).await,
+        Command::Week => {
+            answer_average_with_window(
+                conn,
+                bot,
+                msg,
+                DAY * 7,
+                "Last week {} shat on average {} times a day",
+            )
+            .await
+        }
+        Command::Month => {
+            answer_average_with_window(
+                conn,
+                bot,
+                msg,
+                DAY * 30,
+                "Last month {} shat on average {} times a day",
+            )
+            .await
+        }
+        Command::Year => {
+            answer_average_with_window(
+                conn,
+                bot,
+                msg,
+                DAY * 365,
+                "Last year {} shat on average {} times a day",
+            )
+            .await
+        }
     }
 }
 
-async fn answer_daily(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> ResponseResult<()> {
+async fn format_label(label: &str, args: &[String]) -> anyhow::Result<String> {
+    let parts: Vec<&str> = label.split("{}").collect();
+    if args.len() >= parts.len() {
+        return Err(anyhow!("Too many arguments"));
+    }
+    if args.len() < parts.len() - 1 {
+        return Err(anyhow!("Not enough arguments"));
+    }
+
+    let mut ris = String::new();
+    for i in 0..args.len() {
+        ris.push_str(&parts.get(i).unwrap());
+        ris.push_str(&args.get(i).unwrap());
+    }
+    ris.push_str(&parts.last().unwrap());
+    return Ok(ris);
+}
+
+async fn double_decimal_format(n: f32) -> String {
+    let ris = n.to_string();
+    ris.chars()
+        .fold((String::new(), -1), |(mut s, mut many), c| {
+            if many == 0 {
+                (s, many)
+            } else {
+                s.push(c);
+                many -= 1;
+                if c == '.' {
+                    many = 3;
+                }
+                (s, many)
+            }
+        })
+        .0
+}
+
+async fn answer_average_with_window(
+    conn: Arc<Mutex<Connection>>,
+    bot: Bot,
+    msg: Message,
+    window: u64,
+    label: &str,
+) -> ResponseResult<()> {
     let current = UNIX_EPOCH.elapsed().unwrap().as_secs();
-    let starting = current - WEEK;
+    let starting = current - window;
     match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
         Ok(r) => {
-            let n = r.len() as f32 / 7.0;
-            bot.send_message(
-                msg.chat.id,
-                format!(
-                    "Last week {} shat on average {:.2} times a day",
+            let n = double_decimal_format(r.len() as f32 / (window / DAY) as f32).await;
+            let label = format_label(
+                label,
+                &vec![
                     if msg.from.as_ref().unwrap().username.is_some() {
                         format!("@{}", msg.from.unwrap().username.unwrap())
                     } else {
                         msg.from.as_ref().unwrap().full_name()
                     },
-                    n
-                ),
+                    n,
+                ],
             )
-            .reply_parameters(ReplyParameters::new(msg.id))
-            .await?;
+            .await
+            .unwrap();
+
+            bot.send_message(msg.chat.id, label)
+                .reply_parameters(ReplyParameters::new(msg.id))
+                .await?;
             return Ok(());
         }
         Err(_) => {
