@@ -247,11 +247,11 @@ pub async fn delete_shit_callback(
     bot: Bot,
     query: CallbackQuery,
 ) -> ResponseResult<()> {
+    bot.answer_callback_query(&query.id).await?;
     if query.data.is_none() || !query.mentioned_users().any(|user| user.id == query.from.id) {
         return Ok(());
     }
 
-    bot.answer_callback_query(query.id).await?;
     if delete_shit_session(conn, query.data.unwrap().parse().unwrap())
         .await
         .is_err()
