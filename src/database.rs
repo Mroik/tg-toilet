@@ -93,7 +93,7 @@ pub async fn insert_shitting_session(
     )?)
 }
 
-// With `location` set as NULL
+/// With `location` set as NULL
 pub async fn insert_shitting_session_with_duration(
     conn: Arc<Mutex<Connection>>,
     user: &User,

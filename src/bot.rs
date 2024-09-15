@@ -6,7 +6,6 @@ use crate::{
     },
     BOT_NAME,
 };
-use anyhow::anyhow;
 use chrono::{DateTime, Local};
 use log::error;
 use rusqlite::Connection;
@@ -20,7 +19,7 @@ use teloxide::{
     prelude::{Requester, ResponseResult},
     types::{
         CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, ParseMode,
-        ReplyParameters,
+        ReplyParameters, User,
     },
     utils::command::{parse_command, BotCommands as _},
     Bot,
@@ -111,22 +110,15 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
     }
 }
 
-async fn format_label(label: &str, args: &[String]) -> anyhow::Result<String> {
+async fn format_label(label: &str, args: &[String]) -> String {
     let parts: Vec<&str> = label.split("{}").collect();
-    if args.len() >= parts.len() {
-        return Err(anyhow!("Too many arguments"));
-    }
-    if args.len() < parts.len() - 1 {
-        return Err(anyhow!("Not enough arguments"));
-    }
-
     let mut ris = String::new();
     for i in 0..args.len() {
         ris.push_str(&parts.get(i).unwrap());
         ris.push_str(&args.get(i).unwrap());
     }
     ris.push_str(&parts.last().unwrap());
-    return Ok(ris);
+    return ris;
 }
 
 async fn double_decimal_format(n: f32) -> String {
@@ -147,6 +139,14 @@ async fn double_decimal_format(n: f32) -> String {
         .0
 }
 
+async fn username_or_full(user: &User) -> String {
+    if user.username.is_some() {
+        format!("@{}", user.username.clone().unwrap())
+    } else {
+        user.full_name()
+    }
+}
+
 async fn answer_average_with_window(
     conn: Arc<Mutex<Connection>>,
     bot: Bot,
@@ -159,19 +159,9 @@ async fn answer_average_with_window(
     match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
         Ok(r) => {
             let n = double_decimal_format(r.len() as f32 / (window / DAY) as f32).await;
-            let label = format_label(
-                label,
-                &vec![
-                    if msg.from.as_ref().unwrap().username.is_some() {
-                        format!("@{}", msg.from.unwrap().username.unwrap())
-                    } else {
-                        msg.from.as_ref().unwrap().full_name()
-                    },
-                    n,
-                ],
-            )
-            .await
-            .unwrap();
+
+            let label =
+                format_label(label, &vec![username_or_full(&msg.from.unwrap()).await, n]).await;
 
             bot.send_message(msg.chat.id, label)
                 .reply_parameters(ReplyParameters::new(msg.id))
