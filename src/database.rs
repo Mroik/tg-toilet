@@ -54,7 +54,7 @@ pub async fn insert_shitting_session(
     user: &User,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<u64> {
+) -> Result<ShitSession> {
     let conn = conn.lock().await;
     let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
@@ -75,7 +75,22 @@ pub async fn insert_shitting_session(
         )",
         params![user.id.0, timestamp, Null, Null, haemorrhoids, constipated],
     )?;
-    return Ok(timestamp);
+
+    Ok(conn.query_row(
+        "SELECT * FROM shit_session WHERE user_id = ? AND timestamp = ?",
+        params![user.id.0, timestamp],
+        |row| {
+            Ok(ShitSession {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                timestamp,
+                duration: row.get(3)?,
+                location: row.get(4)?,
+                haemorrhoids,
+                constipated,
+            })
+        },
+    )?)
 }
 
 // With `location` set as NULL
@@ -85,7 +100,7 @@ pub async fn insert_shitting_session_with_duration(
     duration: u64,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<u64> {
+) -> Result<ShitSession> {
     let conn = conn.lock().await;
     let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
@@ -113,7 +128,22 @@ pub async fn insert_shitting_session_with_duration(
             constipated
         ],
     )?;
-    return Ok(timestamp);
+
+    Ok(conn.query_row(
+        "SELECT * FROM shit_session WHERE user_id = ? AND timestamp = ?",
+        params![user.id.0, timestamp],
+        |row| {
+            Ok(ShitSession {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                timestamp,
+                duration: row.get(3)?,
+                location: row.get(4)?,
+                haemorrhoids,
+                constipated,
+            })
+        },
+    )?)
 }
 
 pub async fn insert_shitting_session_with_location(
@@ -123,7 +153,7 @@ pub async fn insert_shitting_session_with_location(
     location: &str,
     haemorrhoids: bool,
     constipated: bool,
-) -> Result<u64> {
+) -> Result<ShitSession> {
     let conn = conn.lock().await;
     let timestamp = UNIX_EPOCH.elapsed()?.as_secs();
     conn.execute(
@@ -151,7 +181,22 @@ pub async fn insert_shitting_session_with_location(
             constipated
         ],
     )?;
-    return Ok(timestamp);
+
+    Ok(conn.query_row(
+        "SELECT * FROM shit_session WHERE user_id = ? AND timestamp = ?",
+        params![user.id.0, timestamp],
+        |row| {
+            Ok(ShitSession {
+                id: row.get(0)?,
+                user_id: row.get(1)?,
+                timestamp,
+                duration: row.get(3)?,
+                location: row.get(4)?,
+                haemorrhoids,
+                constipated,
+            })
+        },
+    )?)
 }
 
 pub async fn query_shit_session_from(
@@ -176,4 +221,10 @@ pub async fn query_shit_session_from(
         });
     }
     return Ok(res);
+}
+
+pub async fn delete_shit_session(conn: Arc<Mutex<Connection>>, id: u64) -> Result<()> {
+    let conn = conn.lock().await;
+    conn.execute("DELETE FROM shit_session WHERE id = ?", params![id])?;
+    return Ok(());
 }

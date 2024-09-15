@@ -2,7 +2,7 @@ mod bot;
 mod database;
 
 use anyhow::Result;
-use bot::answer;
+use bot::{answer, delete_shit_callback};
 use database::setup_db;
 use log::info;
 use std::sync::Arc;
@@ -18,10 +18,15 @@ async fn main() -> Result<()> {
     info!("Starting the bot...");
     let bot = Bot::from_env();
     let conn = Arc::new(Mutex::new(setup_db().await?));
-    Dispatcher::builder(bot, Update::filter_message().endpoint(answer))
-        .dependencies(dptree::deps![conn])
-        .build()
-        .dispatch()
-        .await;
+    Dispatcher::builder(
+        bot,
+        dptree::entry()
+            .branch(Update::filter_callback_query().endpoint(delete_shit_callback))
+            .branch(Update::filter_message().endpoint(answer)),
+    )
+    .dependencies(dptree::deps![conn])
+    .build()
+    .dispatch()
+    .await;
     return Ok(());
 }

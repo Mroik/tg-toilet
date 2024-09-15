@@ -1,7 +1,8 @@
 use crate::{
     database::{
-        create_or_update_user, insert_shitting_session, insert_shitting_session_with_duration,
-        insert_shitting_session_with_location, query_shit_session_from,
+        create_or_update_user, delete_shit_session, insert_shitting_session,
+        insert_shitting_session_with_duration, insert_shitting_session_with_location,
+        query_shit_session_from,
     },
     BOT_NAME,
 };
@@ -16,7 +17,10 @@ use teloxide::{
     macros::BotCommands,
     payloads::SendMessageSetters,
     prelude::{Requester, ResponseResult},
-    types::{Message, ParseMode, ReplyParameters},
+    types::{
+        CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, ParseMode,
+        ReplyParameters,
+    },
     utils::command::{parse_command, BotCommands as _},
     Bot,
 };
@@ -115,7 +119,7 @@ async fn answer_shitting(
     let (_, args) = parse_command(msg.text().unwrap(), BOT_NAME).unwrap();
     let user = msg.from.as_ref().unwrap();
 
-    let timestamp = match args.len() {
+    let new_record = match args.len() {
         0 => Some(
             insert_shitting_session(conn, user, false, false)
                 .await
@@ -197,7 +201,7 @@ async fn answer_shitting(
         }
     };
 
-    if timestamp.is_none() {
+    if new_record.is_none() {
         bot.send_message(
             msg.chat.id,
             //PLEASE_REPORT,
@@ -209,7 +213,8 @@ async fn answer_shitting(
         return Ok(());
     }
 
-    let cur = Duration::new(timestamp.unwrap(), 0);
+    let new_record = new_record.unwrap();
+    let cur = Duration::new(new_record.timestamp, 0);
     let date: DateTime<Local> = (UNIX_EPOCH + cur).into();
     let username = if msg.from.as_ref().unwrap().username.is_some() {
         format!("@{}", msg.from.unwrap().username.unwrap())
@@ -229,7 +234,44 @@ async fn answer_shitting(
         ),
     )
     .reply_parameters(ReplyParameters::new(msg.id))
+    .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+        InlineKeyboardButton::callback("❌ Delete record", format!("{}", new_record.id)),
+    ]]))
     .parse_mode(ParseMode::MarkdownV2)
+    .await?;
+    return Ok(());
+}
+
+pub async fn delete_shit_callback(
+    conn: Arc<Mutex<Connection>>,
+    bot: Bot,
+    query: CallbackQuery,
+) -> ResponseResult<()> {
+    if query.data.is_none() || !query.mentioned_users().any(|user| user.id == query.from.id) {
+        return Ok(());
+    }
+
+    bot.answer_callback_query(query.id).await?;
+    if delete_shit_session(conn, query.data.unwrap().parse().unwrap())
+        .await
+        .is_err()
+    {
+        bot.send_message(
+            query.message.as_ref().unwrap().chat().id,
+            "Couldn't delete record",
+        )
+        .reply_parameters(ReplyParameters::new(query.message.unwrap().id()))
+        .await?;
+        return Ok(());
+    }
+
+    bot.send_message(query.message.as_ref().unwrap().chat().id, "Deleted record")
+        .reply_parameters(ReplyParameters::new(query.message.as_ref().unwrap().id()))
+        .await?;
+    bot.edit_message_reply_markup(
+        query.message.as_ref().unwrap().chat().id,
+        query.message.as_ref().unwrap().id(),
+    )
     .await?;
     return Ok(());
 }
