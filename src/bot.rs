@@ -98,6 +98,7 @@ async fn answer_daily(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> R
             return Ok(());
         }
         Err(_) => {
+            error!("Couldn't query the shit sessions");
             bot.send_message(msg.chat.id, "Couldn't query the shit sessions")
                 .reply_parameters(ReplyParameters::new(msg.id))
                 .await?;
@@ -205,29 +206,30 @@ async fn answer_shitting(
         .parse_mode(ParseMode::MarkdownV2)
         .reply_parameters(ReplyParameters::new(msg.id))
         .await?;
-    } else {
-        let cur = Duration::new(timestamp.unwrap(), 0);
-        let date: DateTime<Local> = (UNIX_EPOCH + cur).into();
-        let username = if msg.from.as_ref().unwrap().username.is_some() {
-            format!("@{}", msg.from.unwrap().username.unwrap())
-        } else {
-            format!(
-                "[{}](tg://user?id={})",
-                msg.from.as_ref().unwrap().full_name(),
-                msg.from.unwrap().id.0,
-            )
-        };
-        bot.send_message(
-            msg.chat.id,
-            format!(
-                "💩💩💩\n{} added a new shitting session to the database with timestamp `{}`",
-                username,
-                date.format("%Y\\-%m\\-%d %H:%M")
-            ),
-        )
-        .reply_parameters(ReplyParameters::new(msg.id))
-        .parse_mode(ParseMode::MarkdownV2)
-        .await?;
+        return Ok(());
     }
+
+    let cur = Duration::new(timestamp.unwrap(), 0);
+    let date: DateTime<Local> = (UNIX_EPOCH + cur).into();
+    let username = if msg.from.as_ref().unwrap().username.is_some() {
+        format!("@{}", msg.from.unwrap().username.unwrap())
+    } else {
+        format!(
+            "[{}](tg://user?id={})",
+            msg.from.as_ref().unwrap().full_name(),
+            msg.from.unwrap().id.0,
+        )
+    };
+    bot.send_message(
+        msg.chat.id,
+        format!(
+            "💩💩💩\n{} added a new shitting session to the database with timestamp `{}`",
+            username,
+            date.format("%Y\\-%m\\-%d %H:%M")
+        ),
+    )
+    .reply_parameters(ReplyParameters::new(msg.id))
+    .parse_mode(ParseMode::MarkdownV2)
+    .await?;
     return Ok(());
 }
