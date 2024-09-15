@@ -163,8 +163,9 @@ pub async fn query_shit_session_from(
     let mut statement =
         conn.prepare("SELECT * FROM shit_session WHERE timestamp >= ? AND user_id = ?")?;
     let mut res = Vec::new();
-    let state_iter = statement.query_map(params![timestamp, user.id.0], |r| {
-        Ok(ShitSession {
+    let mut state_iter = statement.query(params![timestamp, user.id.0])?;
+    while let Ok(Some(r)) = state_iter.next() {
+        res.push(ShitSession {
             id: r.get(0)?,
             user_id: r.get(1)?,
             timestamp: r.get(2)?,
@@ -172,10 +173,7 @@ pub async fn query_shit_session_from(
             location: r.get(4)?,
             haemorrhoids: r.get(5)?,
             constipated: r.get(6)?,
-        })
-    })?;
-    for item in state_iter {
-        res.push(item?);
+        });
     }
     return Ok(res);
 }
