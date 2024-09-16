@@ -128,11 +128,12 @@ async fn double_decimal_format(n: f32) -> String {
             if many == 0 {
                 (s, many)
             } else {
-                s.push(c);
                 many -= 1;
                 if c == '.' {
                     many = 3;
+                    s.push('\\');
                 }
+                s.push(c);
                 (s, many)
             }
         })
@@ -141,9 +142,9 @@ async fn double_decimal_format(n: f32) -> String {
 
 async fn username_or_full(user: &User) -> String {
     if user.username.is_some() {
-        format!("@{}", user.username.clone().unwrap())
+        format!("@{}", user.username.as_ref().unwrap())
     } else {
-        user.full_name()
+        format!("[{}](tg://user?id={})", user.full_name(), user.id.0,)
     }
 }
 
@@ -162,6 +163,7 @@ async fn answer_average_with_window(
             let label = format_label(label, &[username_or_full(&msg.from.unwrap()).await, n]).await;
             bot.send_message(msg.chat.id, label)
                 .reply_parameters(ReplyParameters::new(msg.id))
+                .parse_mode(ParseMode::MarkdownV2)
                 .await?;
             return Ok(());
         }
@@ -280,15 +282,7 @@ async fn answer_shitting(
     let new_record = new_record.unwrap();
     let cur = Duration::new(new_record.timestamp, 0);
     let date: DateTime<Local> = (UNIX_EPOCH + cur).into();
-    let username = if msg.from.as_ref().unwrap().username.is_some() {
-        format!("@{}", msg.from.unwrap().username.unwrap())
-    } else {
-        format!(
-            "[{}](tg://user?id={})",
-            msg.from.as_ref().unwrap().full_name(),
-            msg.from.unwrap().id.0,
-        )
-    };
+    let username = username_or_full(msg.from.as_ref().unwrap()).await;
     bot.send_message(
         msg.chat.id,
         format!(
