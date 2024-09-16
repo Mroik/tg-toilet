@@ -114,10 +114,10 @@ async fn format_label(label: &str, args: &[String]) -> String {
     let parts: Vec<&str> = label.split("{}").collect();
     let mut ris = String::new();
     for i in 0..args.len() {
-        ris.push_str(&parts.get(i).unwrap());
-        ris.push_str(&args.get(i).unwrap());
+        ris.push_str(parts.get(i).unwrap());
+        ris.push_str(args.get(i).unwrap());
     }
-    ris.push_str(&parts.last().unwrap());
+    ris.push_str(parts.last().unwrap());
     return ris;
 }
 
@@ -159,10 +159,7 @@ async fn answer_average_with_window(
     match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
         Ok(r) => {
             let n = double_decimal_format(r.len() as f32 / (window / DAY) as f32).await;
-
-            let label =
-                format_label(label, &vec![username_or_full(&msg.from.unwrap()).await, n]).await;
-
+            let label = format_label(label, &[username_or_full(&msg.from.unwrap()).await, n]).await;
             bot.send_message(msg.chat.id, label)
                 .reply_parameters(ReplyParameters::new(msg.id))
                 .await?;
