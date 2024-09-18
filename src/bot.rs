@@ -310,26 +310,21 @@ pub async fn delete_shit_callback(
         return Ok(());
     }
 
+    let message = query.message.as_ref().unwrap();
     if delete_shit_session(conn, query.data.unwrap().parse().unwrap())
         .await
         .is_err()
     {
-        bot.send_message(
-            query.message.as_ref().unwrap().chat().id,
-            "Couldn't delete record",
-        )
-        .reply_parameters(ReplyParameters::new(query.message.unwrap().id()))
-        .await?;
+        bot.send_message(message.chat().id, "Couldn't delete record")
+            .reply_parameters(ReplyParameters::new(message.id()))
+            .await?;
         return Ok(());
     }
 
-    bot.send_message(query.message.as_ref().unwrap().chat().id, "Deleted record")
-        .reply_parameters(ReplyParameters::new(query.message.as_ref().unwrap().id()))
+    bot.send_message(message.chat().id, "Deleted record")
+        .reply_parameters(ReplyParameters::new(message.id()))
         .await?;
-    bot.edit_message_reply_markup(
-        query.message.as_ref().unwrap().chat().id,
-        query.message.as_ref().unwrap().id(),
-    )
-    .await?;
+    bot.edit_message_reply_markup(message.chat().id, message.id())
+        .await?;
     return Ok(());
 }
