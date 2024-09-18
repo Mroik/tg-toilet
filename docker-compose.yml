@@ -1,0 +1,7 @@
+services:
+  app:
+    build:
+      dockerfile: ./Dockerfile
+      context: ./
+    environment:
+      - TELOXIDE_TOKEN=
