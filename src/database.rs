@@ -228,3 +228,28 @@ pub async fn delete_shit_session(conn: Arc<Mutex<Connection>>, id: u64) -> Resul
     conn.execute("DELETE FROM shit_session WHERE id = ?", params![id])?;
     return Ok(());
 }
+
+pub async fn query_sessions_skipping(
+    conn: Arc<Mutex<Connection>>,
+    user: &User,
+    id: u64,
+) -> Result<Vec<ShitSession>> {
+    let mut ris = Vec::new();
+    let conn = conn.lock().await;
+    let mut statement = conn.prepare(
+        "SELECT * FROM shit_session WHERE user_id = ? AND id < ? ORDER BY id DESC LIMIT 5",
+    )?;
+    let mut state_iter = statement.query(params![user.id.0, id])?;
+    while let Ok(Some(row)) = state_iter.next() {
+        ris.push(ShitSession {
+            id: row.get(0)?,
+            user_id: row.get(1)?,
+            timestamp: row.get(2)?,
+            duration: row.get(3)?,
+            location: row.get(4)?,
+            haemorrhoids: row.get(5)?,
+            constipated: row.get(6)?,
+        });
+    }
+    return Ok(ris);
+}

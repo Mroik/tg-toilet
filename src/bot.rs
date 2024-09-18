@@ -2,10 +2,11 @@ use crate::{
     database::{
         create_or_update_user, delete_shit_session, insert_shitting_session,
         insert_shitting_session_with_duration, insert_shitting_session_with_location,
-        query_shit_session_from,
+        query_sessions_skipping, query_shit_session_from,
     },
     BOT_NAME,
 };
+use anyhow::Result;
 use chrono::{DateTime, Local};
 use log::error;
 use rusqlite::Connection;
@@ -16,7 +17,7 @@ use std::{
 use teloxide::{
     macros::BotCommands,
     payloads::SendMessageSetters,
-    prelude::{Requester, ResponseResult},
+    prelude::Requester,
     types::{
         CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, ParseMode,
         ReplyParameters, User,
@@ -33,6 +34,7 @@ enum Command {
     Week,
     Month,
     Year,
+    Sessions,
 }
 
 pub struct ShitSession {
@@ -50,7 +52,7 @@ const PLEASE_REPORT: &str =
     "Coudln't insert your shitting session 😥\nPlease report incident to @Mroik";
 const DAY: u64 = 60 * 60 * 24;
 
-pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> ResponseResult<()> {
+pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
     if msg.text().is_none() {
         return Ok(());
     }
@@ -107,7 +109,187 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
             )
             .await
         }
+        Command::Sessions => answer_sessions(conn, bot, msg).await,
     }
+}
+
+async fn timestamp2datetime_string(timestamp: u64) -> String {
+    let date = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
+    let d = date.with_timezone(&Local);
+    d.format("%Y-%m-%d %H:%M").to_string()
+}
+
+async fn duration2string(timestamp: u64) -> String {
+    let mut temp = timestamp;
+    let hours = temp / 3600;
+    temp %= 3600;
+    let minutes = temp / 60;
+    let secs = temp % 60;
+    format!("{:02}:{:02}:{:02}", hours, minutes, secs)
+}
+
+async fn generate_table(data: &[ShitSession]) -> String {
+    let mut ris = String::new();
+
+    // Check lengths of each column
+    let mut max = [2, 9, 8, 8, 12, 11];
+    for session in data {
+        let mut cur = session.id.to_string().len();
+        if cur > max[0] {
+            max[0] = cur;
+        }
+        cur = timestamp2datetime_string(session.timestamp).await.len();
+        if cur > max[1] {
+            max[1] = cur;
+        }
+        cur = if session.duration.is_some() {
+            duration2string(session.duration.unwrap()).await.len()
+        } else {
+            0
+        };
+        if cur > max[2] {
+            max[2] = cur;
+        }
+        cur = if session.location.is_some() {
+            session.location.as_ref().unwrap().len()
+        } else {
+            0
+        };
+        if cur > max[3] {
+            max[3] = cur;
+        }
+        cur = if session.haemorrhoids { 3 } else { 2 };
+        if cur > max[4] {
+            max[4] = cur;
+        }
+        cur = if session.constipated { 3 } else { 2 };
+        if cur > max[5] {
+            max[5] = cur;
+        }
+    }
+
+    // Header
+    let mut table_line: String = (0..7 + 12 + max.iter().sum::<usize>())
+        .map(|_| '-')
+        .collect();
+    table_line.push('\n');
+    ris.push_str(&table_line);
+
+    ris.push_str("| Id");
+    for _ in 0..max[0] - 2 {
+        ris.push(' ');
+    }
+
+    ris.push_str(" | Timestamp");
+    for _ in 0..max[1] - 9 {
+        ris.push(' ');
+    }
+
+    ris.push_str(" | Duration");
+    for _ in 0..max[2] - 8 {
+        ris.push(' ');
+    }
+
+    ris.push_str(" | Location");
+    for _ in 0..max[3] - 8 {
+        ris.push(' ');
+    }
+
+    ris.push_str(" | Haemorrhoids");
+    for _ in 0..max[4] - 12 {
+        ris.push(' ');
+    }
+
+    ris.push_str(" | Constipated");
+    for _ in 0..max[5] - 11 {
+        ris.push(' ');
+    }
+    ris.push_str(" |\n");
+    ris.push_str(&table_line);
+
+    // Table body
+    for session in data {
+        ris.push_str("| ");
+        ris.push_str(&session.id.to_string());
+        for _ in 0..max[0] - session.id.to_string().len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" | ");
+        let stamp = timestamp2datetime_string(session.timestamp).await;
+        ris.push_str(&stamp);
+        for _ in 0..max[1] - stamp.len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" | ");
+        let dur = if session.duration.is_some() {
+            duration2string(session.duration.unwrap()).await
+        } else {
+            String::new()
+        };
+        ris.push_str(&dur);
+        for _ in 0..max[2] - dur.len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" | ");
+        let mut temp_string = if session.location.is_some() {
+            session.location.as_ref().unwrap()
+        } else {
+            ""
+        };
+        ris.push_str(temp_string);
+        for _ in 0..max[3] - temp_string.len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" | ");
+        temp_string = if session.haemorrhoids { "Yes" } else { "No" };
+        ris.push_str(temp_string);
+        for _ in 0..max[4] - temp_string.len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" | ");
+        temp_string = if session.constipated { "Yes" } else { "No" };
+        ris.push_str(temp_string);
+        for _ in 0..max[5] - temp_string.len() {
+            ris.push(' ');
+        }
+
+        ris.push_str(" |");
+        ris.push('\n');
+        ris.push_str(&table_line);
+    }
+    return ris;
+}
+
+async fn answer_sessions(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
+    let (_, args) = parse_command(msg.text().unwrap(), BOT_NAME).unwrap();
+    let user = msg.from.as_ref().unwrap();
+    let skip_point = match args.len() {
+        0 => i64::MAX as u64,
+        1 => args.first().unwrap().parse()?,
+        _ => {
+            bot.send_message(
+                msg.chat.id,
+                "⚠️⚠️⚠️\nUsage:\n/sessions\n/sessions <number of entries to skip>",
+            )
+            .reply_parameters(ReplyParameters::new(msg.id))
+            .await?;
+            return Ok(());
+        }
+    };
+
+    let mut data = query_sessions_skipping(conn, user, skip_point).await?;
+    data.reverse();
+    let table = generate_table(&data).await;
+    bot.send_message(msg.chat.id, format!("```txt\n{}\n```", table))
+        .reply_parameters(ReplyParameters::new(msg.id))
+        .parse_mode(ParseMode::MarkdownV2)
+        .await?;
+    return Ok(());
 }
 
 async fn format_label(label: &str, args: &[String]) -> String {
@@ -154,7 +336,7 @@ async fn answer_average_with_window(
     msg: Message,
     window: u64,
     label: &str,
-) -> ResponseResult<()> {
+) -> Result<()> {
     let current = UNIX_EPOCH.elapsed().unwrap().as_secs();
     let starting = current - window;
     match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
@@ -177,11 +359,7 @@ async fn answer_average_with_window(
     }
 }
 
-async fn answer_shitting(
-    conn: Arc<Mutex<Connection>>,
-    bot: Bot,
-    msg: Message,
-) -> ResponseResult<()> {
+async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
     let (_, args) = parse_command(msg.text().unwrap(), BOT_NAME).unwrap();
     let user = msg.from.as_ref().unwrap();
 
@@ -304,7 +482,7 @@ pub async fn delete_shit_callback(
     conn: Arc<Mutex<Connection>>,
     bot: Bot,
     query: CallbackQuery,
-) -> ResponseResult<()> {
+) -> Result<()> {
     bot.answer_callback_query(&query.id).await?;
     if query.data.is_none() || !query.mentioned_users().any(|user| user.id == query.from.id) {
         return Ok(());
