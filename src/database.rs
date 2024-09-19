@@ -231,7 +231,7 @@ pub async fn delete_shit_session(conn: Arc<Mutex<Connection>>, id: u64) -> Resul
 
 pub async fn query_sessions_skipping(
     conn: Arc<Mutex<Connection>>,
-    user: &User,
+    user: u64,
     id: u64,
 ) -> Result<Vec<ShitSession>> {
     let mut ris = Vec::new();
@@ -239,7 +239,7 @@ pub async fn query_sessions_skipping(
     let mut statement = conn.prepare(
         "SELECT * FROM shit_session WHERE user_id = ? AND id < ? ORDER BY id DESC LIMIT 5",
     )?;
-    let mut state_iter = statement.query(params![user.id.0, id])?;
+    let mut state_iter = statement.query(params![user, id])?;
     while let Ok(Some(row)) = state_iter.next() {
         ris.push(ShitSession {
             id: row.get(0)?,

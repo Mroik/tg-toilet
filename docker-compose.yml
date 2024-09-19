@@ -5,3 +5,8 @@ services:
       context: ./
     environment:
       - TELOXIDE_TOKEN=
+      - DOMAIN_NAME=
+      - VIEW_RHASH=
+      - RUST_LOG=
+    volumes:
+      - toilet_db:toilet_db
