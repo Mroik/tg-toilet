@@ -1,4 +1,7 @@
-use crate::{bot::ShitSession, database::query_sessions_skipping};
+use crate::{
+    bot::ShitSession,
+    database::{query_sessions_skipping, query_user},
+};
 use chrono::{DateTime, Local};
 use rusqlite::Connection;
 use std::sync::Arc;
@@ -17,10 +20,15 @@ pub async fn start_api(conn: Arc<Mutex<Connection>>) {
                 if skip <= 0 {
                     skip = i64::MAX;
                 }
-                match query_sessions_skipping(conn, user, skip as u64).await {
+                match query_sessions_skipping(conn.clone(), user, skip as u64).await {
                     Ok(mut data) => {
                         data.reverse();
-                        let page = generate_page(&data).await;
+                        let username = if let Ok(u) = query_user(conn, user).await {
+                            u.username
+                        } else {
+                            return Err(warp::reject::not_found());
+                        };
+                        let page = generate_page(&data, &username).await;
                         Ok(warp::reply::html(page))
                     }
                     Err(_) => Err(warp::reject::not_found()),
@@ -31,9 +39,9 @@ pub async fn start_api(conn: Arc<Mutex<Connection>>) {
     warp::serve(routes).run(([0, 0, 0, 0], 6969)).await;
 }
 
-async fn generate_page(data: &[ShitSession]) -> String {
+async fn generate_page(data: &[ShitSession], username: &str) -> String {
     let mut ris = String::new();
-    ris.push_str(
+    ris.push_str(&format!(
         "
         <html>
             <head>
@@ -41,8 +49,10 @@ async fn generate_page(data: &[ShitSession]) -> String {
             </head>
             <body>
                 <article>
+                    <h1>{}</h1>
     ",
-    );
+        username
+    ));
     ris.push_str(&generate_table(data).await);
     ris.push_str("</article></body></html>");
     return ris;
