@@ -131,7 +131,7 @@ async fn answer_sessions(bot: Bot, msg: Message) -> Result<()> {
     bot.send_message(
         msg.chat.id,
         format!(
-            "t\\.me/iv?url\\=https://{}/sessions/{}/{}&rhash\\={}",
+            "[Here's the data](t\\.me/iv?url\\=https://{}/sessions/{}/{}&rhash\\={})",
             *DOMAIN_NAME, rand_number, user.id.0, *VIEW_RHASH
         ),
     )

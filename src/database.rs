@@ -4,13 +4,15 @@ use crate::{
 };
 use anyhow::Result;
 use rusqlite::{params, types::Null, Connection};
-use std::{path::Path, sync::Arc, time::UNIX_EPOCH};
+use std::{sync::Arc, time::UNIX_EPOCH};
 use teloxide::types::User;
 use tokio::sync::Mutex;
 
 pub async fn setup_db() -> Result<Connection> {
-    let exists = Path::new(DB_NAME).exists();
     let conn = Connection::open(DB_NAME)?;
+    let mut exists = conn
+        .prepare("SELECT * FROM sqlite_master WHERE type = 'table' AND name = 'user'")?
+        .exists([])?;
     if !exists {
         conn.execute(
             "CREATE TABLE user (
@@ -19,7 +21,11 @@ pub async fn setup_db() -> Result<Connection> {
             )",
             [],
         )?;
-
+    }
+    exists = conn
+        .prepare("SELECT * FROM sqlite_master WHERE type = 'table' AND name = 'shit_session'")?
+        .exists([])?;
+    if !exists {
         conn.execute(
             "CREATE TABLE shit_session (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
