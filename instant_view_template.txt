@@ -1,0 +1,7 @@
+~version: "2.1"
+
+?path: /sessions/.+
+
+title: "Shit sessions"
+body: //article
+author: "PoliShitter"
