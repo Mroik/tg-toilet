@@ -40,10 +40,11 @@ async fn generate_page(data: &[ShitSession]) -> String {
                 <title>Shitting data</title>
             </head>
             <body>
+                <article>
     ",
     );
     ris.push_str(&generate_table(data).await);
-    ris.push_str("</body></html>");
+    ris.push_str("</article></body></html>");
     return ris;
 }
 
@@ -90,7 +91,7 @@ async fn generate_table(data: &[ShitSession]) -> String {
             <th>Duration</th>
             <th>Location</th>
             <th>Haemorrhoids</th>
-            <th<Constipated</th>
+            <th>Constipated</th>
         </tr>",
     );
     ris.push_str(&body);
