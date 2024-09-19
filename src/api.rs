@@ -1,6 +1,6 @@
 use crate::{
     bot::ShitSession,
-    database::{query_sessions_skipping, query_user},
+    database::{query_sessions_of_user, query_user},
 };
 use chrono::{DateTime, Local};
 use rusqlite::Connection;
@@ -13,14 +13,10 @@ pub async fn start_api(conn: Arc<Mutex<Connection>>) {
         .and(warp::path("sessions"))
         .and(warp::path::param())
         .and(warp::path::param())
-        .and(warp::path::param())
         .and(warp::any().map(move || conn.clone()))
         .and_then(
-            |_: u16, user: u64, mut skip: i64, conn: Arc<Mutex<Connection>>| async move {
-                if skip <= 0 {
-                    skip = i64::MAX;
-                }
-                match query_sessions_skipping(conn.clone(), user, skip as u64).await {
+            |_: u64, user: u64, conn: Arc<Mutex<Connection>>| async move {
+                match query_sessions_of_user(conn.clone(), user).await {
                     Ok(mut data) => {
                         data.reverse();
                         let username = if let Ok(u) = query_user(conn, user).await {

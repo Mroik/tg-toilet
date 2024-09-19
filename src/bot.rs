@@ -126,28 +126,13 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
 }
 
 async fn answer_sessions(bot: Bot, msg: Message) -> Result<()> {
-    let (_, args) = parse_command(msg.text().unwrap(), BOT_NAME).unwrap();
     let user = msg.from.as_ref().unwrap();
-    let skip_point = match args.len() {
-        0 => i64::MAX as u64,
-        1 => args.first().unwrap().parse()?,
-        _ => {
-            bot.send_message(
-                msg.chat.id,
-                "⚠️⚠️⚠️\nUsage:\n/sessions\n/sessions <number of entries to skip>",
-            )
-            .reply_parameters(ReplyParameters::new(msg.id))
-            .await?;
-            return Ok(());
-        }
-    };
-
-    let rand_number: u16 = random();
+    let rand_number: u64 = random();
     bot.send_message(
         msg.chat.id,
         format!(
-            "t\\.me/iv?url\\=https://{}/sessions/{}/{}/{}&rhash\\={}",
-            *DOMAIN_NAME, rand_number, user.id.0, skip_point, *VIEW_RHASH
+            "t\\.me/iv?url\\=https://{}/sessions/{}/{}&rhash\\={}",
+            *DOMAIN_NAME, rand_number, user.id.0, *VIEW_RHASH
         ),
     )
     .reply_parameters(ReplyParameters::new(msg.id))
