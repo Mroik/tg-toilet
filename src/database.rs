@@ -130,7 +130,7 @@ pub async fn insert_shitting_session_with_duration(
         )",
         params![
             user.id.0,
-            timestamp,
+            timestamp - duration,
             duration,
             Null,
             haemorrhoids,
@@ -183,7 +183,7 @@ pub async fn insert_shitting_session_with_location(
         )",
         params![
             user.id.0,
-            timestamp,
+            timestamp - duration,
             duration,
             location,
             haemorrhoids,
