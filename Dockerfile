@@ -3,6 +3,6 @@ RUN apk add pkgconfig openssl musl-dev libressl-dev
 
 COPY . /app
 WORKDIR /app
-RUN cargo b -r
+RUN cargo b -r && cp ./target/release/tg-toilet . && cargo clean
 
-ENTRYPOINT ["./target/release/tg-toilet"]
+ENTRYPOINT ["./tg-toilet"]
