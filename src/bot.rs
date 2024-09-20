@@ -331,16 +331,16 @@ pub async fn delete_shit_callback(
     query: CallbackQuery,
 ) -> Result<()> {
     bot.answer_callback_query(&query.id).await?;
-    if query.data.is_none()
-        || !query
-            .message
-            .as_ref()
-            .unwrap()
-            .regular_message()
-            .unwrap()
-            .mentioned_users()
-            .any(|user| user.id == query.from.id)
-    {
+    let is_sender = !query
+        .message
+        .as_ref()
+        .unwrap()
+        .regular_message()
+        .unwrap()
+        .mentioned_users()
+        .any(|user| user.id == query.from.id);
+
+    if query.data.is_none() || is_sender {
         return Ok(());
     }
 

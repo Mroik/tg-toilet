@@ -38,15 +38,14 @@ pub async fn start_api(conn: Arc<Mutex<Connection>>) {
 async fn generate_page(data: &[ShitSession], username: &str) -> String {
     let mut ris = String::new();
     ris.push_str(&format!(
-        "
-        <html>
+        "<html>
             <head>
                 <title>Shitting data</title>
             </head>
             <body>
                 <article>
                     <h1>{}</h1>
-    ",
+        ",
         username
     ));
     ris.push_str(&generate_table(data).await);
@@ -59,31 +58,28 @@ async fn generate_table(data: &[ShitSession]) -> String {
     let body = data
         .iter()
         .map(|session| {
-            let mut r = String::new();
-            r.push_str("<tr>");
-            r.push_str("<td>");
-            r.push_str(&session.id.to_string());
-            r.push_str("</td>");
-            r.push_str("<td>");
-            r.push_str(&timestamp2datetime_string(session.timestamp));
-            r.push_str("</td>");
-            r.push_str("<td>");
-            if session.duration.is_some() {
-                r.push_str(&duration2string(session.duration.unwrap()));
-            }
-            r.push_str("</td>");
-            r.push_str("<td>");
-            if session.location.is_some() {
-                r.push_str(session.location.as_ref().unwrap());
-            }
-            r.push_str("</td>");
-            r.push_str("<td>");
-            r.push_str(&session.haemorrhoids.to_string());
-            r.push_str("</td>");
-            r.push_str("<td>");
-            r.push_str(&session.constipated.to_string());
-            r.push_str("</td>");
-            r.push_str("</tr>");
+            let mut r = String::from("<tr><td>");
+            r.push_str(
+                [
+                    session.id.to_string(),
+                    timestamp2datetime_string(session.timestamp),
+                    if session.duration.is_some() {
+                        duration2string(session.duration.unwrap())
+                    } else {
+                        String::new()
+                    },
+                    if session.location.is_some() {
+                        session.location.clone().unwrap()
+                    } else {
+                        String::new()
+                    },
+                    session.haemorrhoids.to_string(),
+                    session.constipated.to_string(),
+                ]
+                .join("</td><td>")
+                .as_str(),
+            );
+            r.push_str("</td></tr>");
             r
         })
         .collect::<Vec<String>>()

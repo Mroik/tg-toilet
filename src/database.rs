@@ -262,12 +262,11 @@ pub async fn query_sessions_of_user(
 
 pub async fn query_user(conn: Arc<Mutex<Connection>>, user_id: u64) -> Result<ShitUser> {
     let conn = conn.lock().await;
-    Ok(
-        conn.query_row("SELECT * FROM user WHERE id = ?", params![user_id], |row| {
-            Ok(ShitUser {
-                id: row.get(0)?,
-                username: row.get(1)?,
-            })
-        })?,
-    )
+    let ris = conn.query_row("SELECT * FROM user WHERE id = ?", params![user_id], |row| {
+        Ok(ShitUser {
+            id: row.get(0)?,
+            username: row.get(1)?,
+        })
+    })?;
+    return Ok(ris);
 }
