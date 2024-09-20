@@ -138,21 +138,22 @@ pub async fn insert_shitting_session_with_duration(
         ],
     )?;
 
-    Ok(conn.query_row(
+    let ris = conn.query_row(
         "SELECT * FROM shit_session WHERE user_id = ? AND timestamp = ?",
-        params![user.id.0, timestamp],
+        params![user.id.0, timestamp - duration],
         |row| {
             Ok(ShitSession {
                 id: row.get(0)?,
                 user_id: row.get(1)?,
-                timestamp,
+                timestamp: row.get(2)?,
                 duration: row.get(3)?,
                 location: row.get(4)?,
                 haemorrhoids,
                 constipated,
             })
         },
-    )?)
+    )?;
+    return Ok(ris);
 }
 
 pub async fn insert_shitting_session_with_location(
@@ -193,12 +194,12 @@ pub async fn insert_shitting_session_with_location(
 
     Ok(conn.query_row(
         "SELECT * FROM shit_session WHERE user_id = ? AND timestamp = ?",
-        params![user.id.0, timestamp],
+        params![user.id.0, timestamp - duration],
         |row| {
             Ok(ShitSession {
                 id: row.get(0)?,
                 user_id: row.get(1)?,
-                timestamp,
+                timestamp: row.get(2)?,
                 duration: row.get(3)?,
                 location: row.get(4)?,
                 haemorrhoids,
