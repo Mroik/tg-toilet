@@ -8,5 +8,6 @@ services:
       - DOMAIN_NAME=
       - VIEW_RHASH=
       - RUST_LOG=
+      - BOT_NAME=
     volumes:
       - toilet_db:toilet_db

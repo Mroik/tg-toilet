@@ -11,7 +11,6 @@ use std::sync::Arc;
 use teloxide::{dispatching::UpdateFilterExt, dptree, prelude::Dispatcher, types::Update, Bot};
 use tokio::sync::Mutex;
 
-const BOT_NAME: &str = "Bot name";
 const DB_NAME: &str = "toilet_db";
 
 #[tokio::main]
@@ -29,6 +28,6 @@ async fn main() -> Result<()> {
     .build();
 
     info!("Starting the bot...");
-    let (l, _) = tokio::join!(tokio::spawn(start_api(conn.clone())), disp.dispatch());
-    return Ok(l?);
+    tokio::join!(start_api(conn.clone()), disp.dispatch());
+    return Ok(());
 }

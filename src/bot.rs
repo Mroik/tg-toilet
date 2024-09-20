@@ -1,10 +1,7 @@
-use crate::{
-    database::{
-        create_or_update_user, delete_shit_session, insert_shitting_session,
-        insert_shitting_session_with_duration, insert_shitting_session_with_location,
-        query_shit_session_from,
-    },
-    BOT_NAME,
+use crate::database::{
+    create_or_update_user, delete_shit_session, insert_shitting_session,
+    insert_shitting_session_with_duration, insert_shitting_session_with_location,
+    query_shit_session_from,
 };
 use anyhow::Result;
 use chrono::{DateTime, Local};
@@ -62,6 +59,7 @@ const DAY: u64 = 60 * 60 * 24;
 lazy_static! {
     static ref DOMAIN_NAME: String = std::env::var("DOMAIN_NAME").unwrap().replace(".", "\\.");
     static ref VIEW_RHASH: String = std::env::var("VIEW_RHASH").unwrap();
+    static ref BOT_NAME: String = std::env::var("BOT_NAME").unwrap();
 }
 
 pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
@@ -70,7 +68,7 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
     }
 
     let text = msg.text().unwrap();
-    let command = Command::parse(text, BOT_NAME);
+    let command = Command::parse(text, &BOT_NAME);
     if command.is_err() || msg.from.is_none() || !msg.chat.is_chat() {
         return Ok(());
     }
@@ -209,7 +207,7 @@ async fn answer_average_with_window(
 }
 
 async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
-    let (_, args) = parse_command(msg.text().unwrap(), BOT_NAME).unwrap();
+    let (_, args) = parse_command(msg.text().unwrap(), &(*BOT_NAME)).unwrap();
     let user = msg.from.as_ref().unwrap();
 
     let new_record = match args.len() {
