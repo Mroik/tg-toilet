@@ -271,3 +271,18 @@ pub async fn query_user(conn: Arc<Mutex<Connection>>, user_id: u64) -> Result<Sh
     })?;
     return Ok(ris);
 }
+
+pub async fn query_username(conn: Arc<Mutex<Connection>>, username: &str) -> Result<ShitUser> {
+    let conn = conn.lock().await;
+    let ris = conn.query_row(
+        "SELECT * FROM user WHERE username = ?",
+        params![username],
+        |row| {
+            Ok(ShitUser {
+                id: row.get(0)?,
+                username: row.get(1)?,
+            })
+        },
+    )?;
+    return Ok(ris);
+}

@@ -1,7 +1,7 @@
 use crate::database::{
     create_or_update_user, delete_shit_session, insert_shitting_session,
     insert_shitting_session_with_duration, insert_shitting_session_with_location,
-    query_shit_session_from,
+    query_shit_session_from, query_username,
 };
 use anyhow::Result;
 use chrono::{DateTime, Local};
@@ -52,8 +52,10 @@ pub struct ShitUser {
 }
 
 const SHITTING_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/shitting\n/shitting duration\n/shitting duration location\n/shitting duration location haemorrhoids\n/shitting duration location haemorrhoids constipated\nDuration: in seconds\nLocation: A string without inner whitespaces\nHaemorrhoids and Constipated are either `true` or `false`";
+const SESSIONS_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/sessions\n/sessions @user";
 const PLEASE_REPORT: &str =
     "Coudln't insert your shitting session 😥\nPlease report incident to @Mroik";
+const NEVER_USED_BOT: &str = "This user has never used this bot";
 const DAY: u64 = 60 * 60 * 24;
 
 lazy_static! {
@@ -119,18 +121,50 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
             )
             .await
         }
-        Command::Sessions => answer_sessions(bot, msg).await,
+        Command::Sessions => answer_sessions(conn, bot, msg).await,
     }
 }
 
-async fn answer_sessions(bot: Bot, msg: Message) -> Result<()> {
-    let user = msg.from.as_ref().unwrap();
+async fn answer_sessions(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
+    let user = {
+        let parsed = parse_command(msg.text().unwrap(), &(*BOT_NAME)).unwrap().1;
+        match parsed.len() {
+            0 => msg.from.as_ref().unwrap().id.0,
+            1 => {
+                let user = parsed.first().unwrap();
+                if user.starts_with('@') {
+                    if let Ok(user) =
+                        query_username(conn, user.chars().skip(1).collect::<String>().as_ref())
+                            .await
+                    {
+                        user.id
+                    } else {
+                        bot.send_message(msg.chat.id, NEVER_USED_BOT)
+                            .reply_parameters(ReplyParameters::new(msg.id))
+                            .await?;
+                        return Ok(());
+                    }
+                } else {
+                    bot.send_message(msg.chat.id, SESSIONS_USAGE)
+                        .reply_parameters(ReplyParameters::new(msg.id))
+                        .await?;
+                    return Ok(());
+                }
+            }
+            _ => {
+                bot.send_message(msg.chat.id, SESSIONS_USAGE)
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+                return Ok(());
+            }
+        }
+    };
     let rand_number: u64 = random();
     bot.send_message(
         msg.chat.id,
         format!(
             "[Here's the data](t\\.me/iv?url\\=https://{}/sessions/{}/{}&rhash\\={})",
-            *DOMAIN_NAME, rand_number, user.id.0, *VIEW_RHASH
+            *DOMAIN_NAME, rand_number, user, *VIEW_RHASH
         ),
     )
     .reply_parameters(ReplyParameters::new(msg.id))
