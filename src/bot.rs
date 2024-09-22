@@ -4,15 +4,13 @@ use crate::database::{
     query_shit_session_from, query_username,
 };
 use anyhow::Result;
-use chrono::{DateTime, Local};
+use chrono::DateTime;
+use chrono_tz::Tz;
 use lazy_static::lazy_static;
 use log::error;
 use rand::random;
 use rusqlite::Connection;
-use std::{
-    sync::Arc,
-    time::{Duration, UNIX_EPOCH},
-};
+use std::{sync::Arc, time::UNIX_EPOCH};
 use teloxide::{
     macros::BotCommands,
     payloads::SendMessageSetters,
@@ -62,6 +60,7 @@ lazy_static! {
     static ref DOMAIN_NAME: String = std::env::var("DOMAIN_NAME").unwrap().replace(".", "\\.");
     static ref VIEW_RHASH: String = std::env::var("VIEW_RHASH").unwrap();
     static ref BOT_NAME: String = std::env::var("BOT_NAME").unwrap();
+    pub static ref TIMEZONE: Tz = std::env::var("TIMEZONE").unwrap().parse().unwrap();
 }
 
 pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
@@ -339,15 +338,16 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
     }
 
     let new_record = new_record.unwrap();
-    let cur = Duration::new(new_record.timestamp, 0);
-    let date: DateTime<Local> = (UNIX_EPOCH + cur).into();
     let username = username_or_full(msg.from.as_ref().unwrap()).await;
+    let current = DateTime::from_timestamp(new_record.timestamp as i64, 0)
+        .unwrap()
+        .with_timezone(&(*TIMEZONE));
     bot.send_message(
         msg.chat.id,
         format!(
             "💩💩💩\n{} added a new shitting session to the database with timestamp `{}`",
             username,
-            date.format("%Y\\-%m\\-%d %H:%M")
+            current.format("%Y\\-%m\\-%d %H:%M")
         ),
     )
     .reply_parameters(ReplyParameters::new(msg.id))

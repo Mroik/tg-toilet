@@ -1,8 +1,8 @@
 use crate::{
-    bot::ShitSession,
+    bot::{ShitSession, TIMEZONE},
     database::{query_sessions_of_user, query_user},
 };
-use chrono::{DateTime, Local};
+use chrono::DateTime;
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -103,7 +103,7 @@ async fn generate_table(data: &[ShitSession]) -> String {
 
 fn timestamp2datetime_string(timestamp: u64) -> String {
     let date = DateTime::from_timestamp(timestamp as i64, 0).unwrap();
-    let d = date.with_timezone(&Local);
+    let d = date.with_timezone(&(*TIMEZONE));
     d.format("%Y-%m-%d %H:%M").to_string()
 }
 

@@ -9,6 +9,7 @@ needless_return = "allow"
 [dependencies]
 anyhow = "1.0.88"
 chrono = "0.4.38"
+chrono-tz = "0.10.0"
 env_logger = "0.11.5"
 lazy_static = "1.5.0"
 log = "0.4.22"

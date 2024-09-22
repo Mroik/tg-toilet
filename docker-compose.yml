@@ -9,5 +9,6 @@ services:
       - VIEW_RHASH=
       - RUST_LOG=
       - BOT_NAME=
+      - TIMEZONE=
     volumes:
       - toilet_db:toilet_db
