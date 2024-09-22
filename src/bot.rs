@@ -32,6 +32,28 @@ enum Command {
     Month,
     Year,
     Sessions,
+    Help,
+}
+
+impl TryFrom<&str> for Command {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+        let ris = match value {
+            "shitting" => Self::Shitting,
+            "week" => Self::Week,
+            "month" => Self::Month,
+            "year" => Self::Year,
+            "sessions" => Self::Sessions,
+            _ => {
+                return Err(anyhow::Error::msg(format!(
+                    "Couldn't convert {} into a Command",
+                    value
+                )))
+            }
+        };
+        return Ok(ris);
+    }
 }
 
 pub struct ShitSession {
@@ -51,6 +73,7 @@ pub struct ShitUser {
 
 const SHITTING_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/shitting\n/shitting duration\n/shitting duration location\n/shitting duration location haemorrhoids\n/shitting duration location haemorrhoids constipated\nDuration: in seconds\nLocation: A string without inner whitespaces\nHaemorrhoids and Constipated are either `true` or `false`";
 const SESSIONS_USAGE: &str = "⚠️⚠️⚠️\nUsage:\n/sessions\n/sessions @user";
+const HELP_USAGE: &str = "/help shitting\n/help sessions\n/help week\n/help month\n/help year";
 const PLEASE_REPORT: &str =
     "Coudln't insert your shitting session 😥\nPlease report incident to @Mroik";
 const NEVER_USED_BOT: &str = "This user has never used this bot";
@@ -121,7 +144,52 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
             .await
         }
         Command::Sessions => answer_sessions(conn, bot, msg).await,
+        Command::Help => answer_help(bot, msg).await,
     }
+}
+
+async fn answer_help(bot: Bot, msg: Message) -> Result<()> {
+    let (_, args) = parse_command(msg.text().unwrap(), &(*BOT_NAME)).unwrap();
+    match args.len() {
+        0 => {
+            bot.send_message(msg.chat.id, HELP_USAGE)
+                .reply_parameters(ReplyParameters::new(msg.id))
+                .await?;
+        }
+        _ => match Command::try_from(*args.first().unwrap()) {
+            Ok(Command::Shitting) => {
+                bot.send_message(msg.chat.id, SHITTING_USAGE)
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+            Ok(Command::Week) => {
+                bot.send_message(msg.chat.id, "⚠️⚠️⚠️\nUsage:\n/week")
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+            Ok(Command::Month) => {
+                bot.send_message(msg.chat.id, "⚠️⚠️⚠️\nUsage:\n/month")
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+            Ok(Command::Year) => {
+                bot.send_message(msg.chat.id, "⚠️⚠️⚠️\nUsage:\n/year")
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+            Ok(Command::Sessions) => {
+                bot.send_message(msg.chat.id, SESSIONS_USAGE)
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+            _ => {
+                bot.send_message(msg.chat.id, HELP_USAGE)
+                    .reply_parameters(ReplyParameters::new(msg.id))
+                    .await?;
+            }
+        },
+    }
+    return Ok(());
 }
 
 async fn answer_sessions(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
