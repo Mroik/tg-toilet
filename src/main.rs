@@ -5,11 +5,9 @@ mod database;
 use anyhow::Result;
 use api::start_api;
 use bot::{answer, delete_shit_callback};
-use database::setup_db;
+use database::ToiletDB;
 use log::info;
-use std::sync::Arc;
 use teloxide::{dispatching::UpdateFilterExt, dptree, prelude::Dispatcher, types::Update, Bot};
-use tokio::sync::Mutex;
 
 const DB_NAME: &str = "toilet_db";
 
@@ -17,7 +15,7 @@ const DB_NAME: &str = "toilet_db";
 async fn main() -> Result<()> {
     env_logger::init();
     let bot = Bot::from_env();
-    let conn = Arc::new(Mutex::new(setup_db().await?));
+    let conn = ToiletDB::new().await?;
     let mut disp = Dispatcher::builder(
         bot,
         dptree::entry()

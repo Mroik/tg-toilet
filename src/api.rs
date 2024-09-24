@@ -1,36 +1,31 @@
 use crate::{
     bot::{ShitSession, TIMEZONE},
-    database::{query_sessions_of_user, query_user},
+    database::ToiletDB,
 };
 use chrono::DateTime;
-use rusqlite::Connection;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 use warp::Filter;
 
-pub async fn start_api(conn: Arc<Mutex<Connection>>) {
+pub async fn start_api(conn: ToiletDB) {
     let routes = warp::get()
         .and(warp::path("sessions"))
         .and(warp::path::param())
         .and(warp::path::param())
         .and(warp::any().map(move || conn.clone()))
-        .and_then(
-            |_: u64, user: u64, conn: Arc<Mutex<Connection>>| async move {
-                match query_sessions_of_user(conn.clone(), user).await {
-                    Ok(mut data) => {
-                        data.reverse();
-                        let username = if let Ok(u) = query_user(conn, user).await {
-                            u.username
-                        } else {
-                            return Err(warp::reject::not_found());
-                        };
-                        let page = generate_page(&data, &username).await;
-                        Ok(warp::reply::html(page))
-                    }
-                    Err(_) => Err(warp::reject::not_found()),
+        .and_then(|_: u64, user: u64, conn: ToiletDB| async move {
+            match conn.query_sessions_of_user(user).await {
+                Ok(mut data) => {
+                    data.reverse();
+                    let username = if let Ok(u) = conn.query_user(user).await {
+                        u.username
+                    } else {
+                        return Err(warp::reject::not_found());
+                    };
+                    let page = generate_page(&data, &username).await;
+                    Ok(warp::reply::html(page))
                 }
-            },
-        );
+                Err(_) => Err(warp::reject::not_found()),
+            }
+        });
 
     warp::serve(routes).run(([0, 0, 0, 0], 6969)).await;
 }

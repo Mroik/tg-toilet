@@ -1,16 +1,11 @@
-use crate::database::{
-    create_or_update_user, delete_shit_session, insert_shitting_session,
-    insert_shitting_session_with_duration, insert_shitting_session_with_location,
-    query_shit_session_from, query_username,
-};
+use crate::database::ToiletDB;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono_tz::Tz;
 use lazy_static::lazy_static;
 use log::error;
 use rand::random;
-use rusqlite::Connection;
-use std::{sync::Arc, time::UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 use teloxide::{
     macros::BotCommands,
     payloads::SendMessageSetters,
@@ -22,7 +17,6 @@ use teloxide::{
     utils::command::{parse_command, BotCommands as _},
     Bot,
 };
-use tokio::sync::Mutex;
 
 #[derive(BotCommands)]
 #[command(rename_rule = "lowercase")]
@@ -86,7 +80,7 @@ lazy_static! {
     pub static ref TIMEZONE: Tz = std::env::var("TIMEZONE").unwrap().parse().unwrap();
 }
 
-pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
+pub async fn answer(conn: ToiletDB, bot: Bot, msg: Message) -> Result<()> {
     if msg.text().is_none() {
         return Ok(());
     }
@@ -97,7 +91,8 @@ pub async fn answer(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Res
         return Ok(());
     }
 
-    if create_or_update_user(conn.clone(), msg.from.as_ref().unwrap())
+    if conn
+        .create_or_update_user(msg.from.as_ref().unwrap())
         .await
         .is_err()
     {
@@ -192,7 +187,7 @@ async fn answer_help(bot: Bot, msg: Message) -> Result<()> {
     return Ok(());
 }
 
-async fn answer_sessions(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
+async fn answer_sessions(conn: ToiletDB, bot: Bot, msg: Message) -> Result<()> {
     let user = {
         let parsed = parse_command(msg.text().unwrap(), &(*BOT_NAME)).unwrap().1;
         match parsed.len() {
@@ -200,9 +195,9 @@ async fn answer_sessions(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
             1 => {
                 let user = parsed.first().unwrap();
                 if user.starts_with('@') {
-                    if let Ok(user) =
-                        query_username(conn, user.chars().skip(1).collect::<String>().as_ref())
-                            .await
+                    if let Ok(user) = conn
+                        .query_username(user.chars().skip(1).collect::<String>().as_ref())
+                        .await
                     {
                         user.id
                     } else {
@@ -279,7 +274,7 @@ async fn username_or_full(user: &User) -> String {
 }
 
 async fn answer_average_with_window(
-    conn: Arc<Mutex<Connection>>,
+    conn: ToiletDB,
     bot: Bot,
     msg: Message,
     window: u64,
@@ -287,7 +282,10 @@ async fn answer_average_with_window(
 ) -> Result<()> {
     let current = UNIX_EPOCH.elapsed().unwrap().as_secs();
     let starting = current - window;
-    match query_shit_session_from(conn, msg.from.as_ref().unwrap(), starting).await {
+    match conn
+        .query_shit_session_from(msg.from.as_ref().unwrap(), starting)
+        .await
+    {
         Ok(r) => {
             let n = double_decimal_format(r.len() as f32 / (window / DAY) as f32).await;
             let label = format_label(label, &[username_or_full(&msg.from.unwrap()).await, n]).await;
@@ -307,13 +305,13 @@ async fn answer_average_with_window(
     }
 }
 
-async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -> Result<()> {
+async fn answer_shitting(conn: ToiletDB, bot: Bot, msg: Message) -> Result<()> {
     let (_, args) = parse_command(msg.text().unwrap(), &(*BOT_NAME)).unwrap();
     let user = msg.from.as_ref().unwrap();
 
     let new_record = match args.len() {
         0 => Some(
-            insert_shitting_session(conn, user, false, false)
+            conn.insert_shitting_session(user, false, false)
                 .await
                 .unwrap(),
         ),
@@ -322,7 +320,7 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
             match duration {
                 Err(_) => None,
                 Ok(d) => Some(
-                    insert_shitting_session_with_duration(conn, user, d, false, false)
+                    conn.insert_shitting_session_with_duration(user, d, false, false)
                         .await
                         .unwrap(),
                 ),
@@ -333,8 +331,7 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
             match duration {
                 Err(_) => None,
                 Ok(d) => Some(
-                    insert_shitting_session_with_location(
-                        conn,
+                    conn.insert_shitting_session_with_location(
                         user,
                         d,
                         args.get(1).unwrap(),
@@ -352,8 +349,7 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
             match (duration, haemorrhoids) {
                 (Err(_), _) | (_, Err(_)) => None,
                 (Ok(d), Ok(h)) => Some(
-                    insert_shitting_session_with_location(
-                        conn,
+                    conn.insert_shitting_session_with_location(
                         user,
                         d,
                         args.get(1).unwrap(),
@@ -372,16 +368,9 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
             match (duration, haemorrhoids, constipated) {
                 (Err(_), _, _) | (_, Err(_), _) | (_, _, Err(_)) => None,
                 (Ok(d), Ok(h), Ok(c)) => Some(
-                    insert_shitting_session_with_location(
-                        conn,
-                        user,
-                        d,
-                        args.get(1).unwrap(),
-                        h,
-                        c,
-                    )
-                    .await
-                    .unwrap(),
+                    conn.insert_shitting_session_with_location(user, d, args.get(1).unwrap(), h, c)
+                        .await
+                        .unwrap(),
                 ),
             }
         }
@@ -427,11 +416,7 @@ async fn answer_shitting(conn: Arc<Mutex<Connection>>, bot: Bot, msg: Message) -
     return Ok(());
 }
 
-pub async fn delete_shit_callback(
-    conn: Arc<Mutex<Connection>>,
-    bot: Bot,
-    query: CallbackQuery,
-) -> Result<()> {
+pub async fn delete_shit_callback(conn: ToiletDB, bot: Bot, query: CallbackQuery) -> Result<()> {
     bot.answer_callback_query(&query.id).await?;
     let is_sender = !query
         .message
@@ -447,7 +432,8 @@ pub async fn delete_shit_callback(
     }
 
     let message = query.message.as_ref().unwrap();
-    if delete_shit_session(conn, query.data.unwrap().parse().unwrap())
+    if conn
+        .delete_shit_session(query.data.unwrap().parse().unwrap())
         .await
         .is_err()
     {
