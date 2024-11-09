@@ -247,22 +247,21 @@ async fn format_label(label: &str, args: &[String]) -> String {
 }
 
 async fn double_decimal_format(n: f32) -> String {
-    let ris = n.to_string();
-    ris.chars()
-        .fold((String::new(), -1), |(mut s, mut many), c| {
-            if many == 0 {
-                (s, many)
-            } else {
-                many -= 1;
-                if c == '.' {
-                    many = 3;
-                    s.push('\\');
-                }
-                s.push(c);
-                (s, many)
-            }
-        })
-        .0
+    let initial = n.to_string();
+    let mut ris = String::new();
+    let mut many = -1;
+    initial.chars().for_each(|c| {
+        if many == 0 {
+            return;
+        }
+        many -= 1;
+        if c == '.' {
+            many = 3;
+            ris.push('\\');
+        }
+        ris.push(c);
+    });
+    return ris;
 }
 
 async fn username_or_full(user: &User) -> String {
